@@ -18,12 +18,11 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y aria2 zip
+          sudo apt-get install -y aria2 zip curl jq
 
       - name: Extract URLs and download files
         run: |
           MSG=$(git log -1 --pretty=%B)
-          echo "Commit message: $MSG"
 
           if echo "$MSG" | grep -q 'download-zip:'; then
             MODE="zip"
@@ -36,21 +35,13 @@ jobs:
             exit 1
           fi
 
-          echo "Mode: $MODE"
           mkdir -p downloads tmp_downloads
 
           echo "$URL_LINE" | tr ' ' '\n' | while read -r URL; do
             [ -z "$URL" ] && continue
             FILENAME=$(basename "$URL")
-            echo "⬇️ Downloading $URL -> $FILENAME"
 
-            aria2c \
-              --split=2 \
-              --max-connection-per-server=2 \
-              --min-split-size=10M \
-              --out="$FILENAME" \
-              --dir="tmp_downloads" \
-              "$URL"
+            aria2c --out="$FILENAME" --dir="tmp_downloads" "$URL"
           done
 
           if [ "$MODE" = "zip" ]; then
@@ -60,27 +51,67 @@ jobs:
             cp tmp_downloads/* downloads/
           fi
 
-          # Split files larger than 90MB
           mkdir -p final
-          LIMIT=$((90 * 1024 * 1024))
+          cp downloads/* final/
 
-          for FILE in downloads/*; do
-            SIZE=$(stat -c%s "$FILE")
-            BASENAME=$(basename "$FILE")
-
-            if [ "$SIZE" -gt "$LIMIT" ]; then
-              echo "✂️ Splitting $BASENAME ..."
-              zip -s 90m "final/${BASENAME}.zip" "$FILE"
-            else
-              cp "$FILE" "final/$BASENAME"
-            fi
-          done
+      - name: Create final ZIP
+        run: |
+          FINAL_ZIP="release_${{ github.run_id }}.zip"
+          zip -r "$FINAL_ZIP" final/
+          echo "FINAL_ZIP=$FINAL_ZIP" >> $GITHUB_ENV
 
       - name: Create Release & Upload
+        id: release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: auto-${{ github.run_id }}
           name: Auto Download ${{ github.run_id }}
-          files: final/*
+          files: ${{ env.FINAL_ZIP }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get asset download URL
+        run: |
+          TAG="auto-${{ github.run_id }}"
+          REPO="${{ github.repository }}"
+
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/$REPO/releases/tags/$TAG)
+
+          DOWNLOAD_URL=$(echo "$RESPONSE" | jq -r '.assets[0].browser_download_url')
+
+          echo "DOWNLOAD_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
+          echo "URL: $DOWNLOAD_URL"
+
+      - name: Validate link
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$DOWNLOAD_URL")
+          echo "HTTP Status: $STATUS"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Link invalid"
+            exit 1
+          fi
+
+      - name: Update Release Notes
+        run: |
+          TAG="auto-${{ github.run_id }}"
+          REPO="${{ github.repository }}"
+
+          BODY=$(cat <<EOF
+📦 Download Ready
+
+🔗 Direct Link:
+${{ env.DOWNLOAD_URL }}
+
+---
+Generated automatically ✅
+EOF
+)
+
+          curl -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/repos/$REPO/releases/tags/$TAG \
+            -d "$(jq -n --arg body "$BODY" '{body: $body}')"
