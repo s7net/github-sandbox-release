@@ -4,7 +4,7 @@
 
 A GitHub Actions workflow that lets you download files and publish them directly to **GitHub Releases** just by writing a special commit message — no terminal needed.
 
----
+--- 
 
 ## ⚙️ Setup
  
