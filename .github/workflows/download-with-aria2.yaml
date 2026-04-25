@@ -86,6 +86,8 @@ jobs:
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$DOWNLOAD_URL")
 
+          echo "HTTP Status: $STATUS"
+
           if [ "$STATUS" != "200" ]; then
             echo "❌ Link invalid"
             exit 1
@@ -96,13 +98,7 @@ jobs:
           TAG="auto-${{ github.run_id }}"
           REPO="${{ github.repository }}"
 
-          BODY="📦 Download Ready
-
-🔗 Direct Link:
-${DOWNLOAD_URL}
-
----
-Generated automatically ✅"
+          BODY=$(printf "📦 Download Ready\n\n🔗 Direct Link:\n%s\n\n---\nGenerated automatically ✅" "$DOWNLOAD_URL")
 
           curl -X PATCH \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
