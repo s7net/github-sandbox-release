@@ -1,8 +1,8 @@
 # github-sandbox
 
-# 📥 Download Files via Commit Message
+# 📥 Download Files via Commit Message (Release Mode)
 
-A GitHub Actions workflow that lets you download files into your repository just by writing a special commit message — no terminal or command line needed.
+A GitHub Actions workflow that lets you download files and publish them directly to **GitHub Releases** just by writing a special commit message — no terminal needed.
 
 ---
 
@@ -14,94 +14,88 @@ A GitHub Actions workflow that lets you download files into your repository just
 3. Scroll down to **Workflow permissions**
 4. Select **Read and write permissions** and click **Save**
 
-That's it — no tokens or secrets needed.
+> ✅ No PAT or secrets needed — the default `GITHUB_TOKEN` is enough for releases.
 
 ---
 
 ## 🚀 Usage
 
-You trigger downloads by editing any file directly on GitHub and using a special commit message when saving.
+You trigger downloads by editing any file directly on GitHub and using a special commit message.
 
 ### How to trigger a download
 
-1. Open any file in your repository on GitHub (for example, this `README.md`)
-2. Click the **pencil icon** (✏️) at the top right to edit it
-3. Make any small change (add a space, a blank line, anything)
-4. Scroll down to the **Commit changes** section
-5. Select **Commit directly to the `main` branch**
-6. In the commit message box, type one of the commands below
+1. Open any file in your repository (e.g. `README.md`)
+2. Click the **✏️ Edit** button
+3. Make a small change
+4. Scroll to **Commit changes**
+5. Select **Commit directly to `main`**
+6. Enter one of the commands below in the commit message
 7. Click **Commit changes**
-
-The workflow will run automatically and the downloaded files will appear in the `downloads/` folder.
 
 ---
 
 ## 📝 Commands
 
-### Download files individually
-
-Downloads each file and saves it by its original filename.
+### 📦 Download files and upload to Release
 
 ```
 download: URL1 URL2 URL3
 ```
 
-**Examples:**
-
+**Example:**
 ```
 download: https://example.com/file.zip
 ```
 
-```
-download: https://example.com/a.zip https://example.com/b.pdf https://example.com/c.zip
-```
-
 ---
 
-### Download and archive into a single ZIP
-
-Downloads all files and bundles them into one timestamped `.zip` archive saved to `downloads/`.
+### 🗜️ Download and bundle into a ZIP (Release asset)
 
 ```
 download-zip: URL1 URL2 URL3
 ```
 
-**Examples:**
-
+**Example:**
 ```
-download-zip: https://example.com/file.zip
+download-zip: https://example.com/a.zip https://example.com/b.pdf
 ```
-
-```
-download-zip: https://example.com/a.zip https://example.com/b.pdf https://example.com/c.zip
-```
-
-The resulting archive will be named like: `archive_20250423_153012.zip`
 
 ---
 
-## 📁 Output
+## 📦 Release Output
+
+Each run creates (or updates) a release:
+
+- Release name: `Auto Download`
+- Tag: `auto-download`
 
 | Command | Result |
 |---|---|
-| `download:` | Each file saved individually in `downloads/` with its original name |
-| `download-zip:` | All files bundled into a single `archive_YYYYMMDD_HHMMSS.zip` in `downloads/` |
+| `download:` | Each file uploaded individually as a Release asset |
+| `download-zip:` | A single `archive_YYYYMMDD_HHMMSS.zip` uploaded |
 
 ---
 
-## 👀 Checking the result
+## 👀 Where to find files
 
-After committing, you can monitor the workflow:
-
-1. Click the **Actions** tab in your repository
-2. Click the latest workflow run to see progress and logs
-3. Once it completes, go back to the **Code** tab and open the `downloads/` folder to find your files
+1. Go to the **Releases** section of your repository
+2. Open the latest release (`Auto Download`)
+3. Download files from the **Assets** section
 
 ---
 
 ## ⚠️ Notes
 
-- URLs must be publicly accessible (no login required)
-- Separate multiple URLs with spaces
-- The workflow skips itself using `[skip ci]` in its own commit message to avoid infinite loops
-- If no valid `download:` or `download-zip:` command is found in the commit message, the workflow will exit without doing anything
+- URLs must be public (no authentication)
+- Separate URLs with spaces
+- Workflow uses `[skip ci]` to prevent infinite loops
+- If no valid command is found, workflow exits silently
+- Existing assets with same name may be overwritten depending on implementation
+
+---
+
+## 💡 Tips
+
+- Releases are better for large files compared to committing into the repo
+- Keeps repository clean and avoids repo size limits
+- Easier to download multiple files from one place
